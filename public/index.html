@@ -82,6 +82,143 @@ function join(n){openLogin()}
 function openLogin(){document.getElementById("modal").classList.add("show")}
 function closeLogin(){document.getElementById("modal").classList.remove("show")}
 renderTours();
-</script>
+const SUPABASE_URL = "https://vksujbszuydnhqmzktmc.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_cAbAG8a7vH3wlXmGaVaRcw_BTXNZ0mF";
+
+const supabaseReady = new Promise((resolve, reject) => {
+  const script = document.createElement("script");
+  script.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2";
+
+  script.onload = () => {
+    const client = window.supabase.createClient(
+      SUPABASE_URL,
+      SUPABASE_PUBLISHABLE_KEY
+    );
+    resolve(client);
+  };
+
+  script.onerror = () => reject(new Error("Supabase library load failed"));
+  document.head.appendChild(script);
+});
+
+let loginPhone = "";
+
+function openLogin() {
+  const box = document.querySelector("#modal .modalBox");
+
+  box.innerHTML = `
+    <button class="close" onclick="closeLogin()">×</button>
+    <h3>Welcome to ENKOGAME</h3>
+
+    <p>Enter your mobile number</p>
+
+    <input
+      id="phoneInput"
+      type="tel"
+      inputmode="numeric"
+      placeholder="9876543210"
+      maxlength="10"
+      style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ccc;"
+    >
+
+    <button class="btn" style="width:100%" onclick="sendOtp()">
+      Send OTP
+    </button>
+
+    <div id="otpArea" style="display:none;margin-top:12px;">
+      <input
+        id="otpInput"
+        type="tel"
+        inputmode="numeric"
+        placeholder="Enter 6-digit OTP"
+        maxlength="6"
+        style="width:100%;padding:12px;margin:8px 0;border-radius:8px;border:1px solid #ccc;"
+      >
+
+      <button class="btn" style="width:100%" onclick="verifyOtp()">
+        Verify OTP
+      </button>
+    </div>
+
+    <p id="otpMsg" style="margin-top:10px;"></p>
+  `;
+
+  document.getElementById("modal").classList.add("show");
+}
+
+function closeLogin() {
+  document.getElementById("modal").classList.remove("show");
+}
+
+async function sendOtp() {
+  let phone = document.getElementById("phoneInput").value.trim();
+
+  if (!/^\d{10}$/.test(phone)) {
+    document.getElementById("otpMsg").textContent =
+      "Please enter a valid 10-digit mobile number.";
+    return;
+  }
+
+  phone = "+91" + phone;
+  loginPhone = phone;
+
+  const msg = document.getElementById("otpMsg");
+  msg.textContent = "Sending OTP...";
+
+  try {
+    const sb = await supabaseReady;
+
+    const { error } = await sb.auth.signInWithOtp({
+      phone: phone
+    });
+
+    if (error) {
+      msg.textContent = error.message;
+      return;
+    }
+
+    document.getElementById("otpArea").style.display = "block";
+    msg.textContent = "OTP sent successfully.";
+  } catch (error) {
+    msg.textContent = error.message;
+  }
+}
+
+async function verifyOtp() {
+  const token = document.getElementById("otpInput").value.trim();
+  const msg = document.getElementById("otpMsg");
+
+  if (!/^\d{6}$/.test(token)) {
+    msg.textContent = "Enter the 6-digit OTP.";
+    return;
+  }
+
+  msg.textContent = "Verifying...";
+
+  try {
+    const sb = await supabaseReady;
+
+    const { data, error } = await sb.auth.verifyOtp({
+      phone: loginPhone,
+      token: token,
+      type: "sms"
+    });
+
+    if (error) {
+      msg.textContent = error.message;
+      return;
+    }
+
+    msg.textContent = "Login successful!";
+
+    setTimeout(() => {
+      closeLogin();
+    }, 800);
+
+  } catch (error) {
+    msg.textContent = error.message;
+  }
+}  
+</script> 
 </body>
 </html>
